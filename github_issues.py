@@ -1,4 +1,6 @@
 from github import Github, GithubException
+import time
+import threading
 
 # Get GitHub token from user input
 GITHUB_TOKEN = input("Enter your GitHub token: ")
@@ -20,6 +22,12 @@ except GithubException:
 except Exception as e:
     print(f"Unexpected error during connection: {e}")
     exit()
+
+# Global variables for notification system
+notifications_enabled = False
+last_issue_count = 0
+last_pr_count = 0
+last_commit_count = 0
 
 def get_repo(repo_name):
     """Get a repository object by its name."""
@@ -149,6 +157,42 @@ def list_branches(repo):
     except Exception as e:
         print(f"Error listing branches: {e}")
 
+def check_notifications(repo):
+    """Check for new activities in the repository and print notifications."""
+    global last_issue_count, last_pr_count, last_commit_count
+    while notifications_enabled:
+        try:
+            # Check for new issues
+            current_issue_count = repo.get_issues(state="open").totalCount
+            if current_issue_count > last_issue_count:
+                new_issues = repo.get_issues(state="open")[:current_issue_count - last_issue_count]
+                for issue in new_issues:
+                    print(f"\n[Notification] New Issue: #{issue.number} - {issue.title}")
+                last_issue_count = current_issue_count
+
+            # Check for new pull requests
+            current_pr_count = repo.get_pulls(state="open").totalCount
+            if current_pr_count > last_pr_count:
+                new_prs = repo.get_pulls(state="open")[:current_pr_count - last_pr_count]
+                for pr in new_prs:
+                    print(f"\n[Notification] New Pull Request: #{pr.number} - {pr.title}")
+                last_pr_count = current_pr_count
+
+            # Check for new commits
+            current_commit_count = repo.get_commits().totalCount
+            if current_commit_count > last_commit_count:
+                new_commits = repo.get_commits()[:current_commit_count - last_commit_count]
+                for commit in new_commits:
+                    author = commit.author.login if commit.author else "Unknown"
+                    print(f"\n[Notification] New Commit: {commit.sha[:7]} - {commit.commit.message} by {author}")
+                last_commit_count = current_commit_count
+
+            # Wait before the next check
+            time.sleep(30)  # Check every 30 seconds
+        except Exception as e:
+            print(f"\n[Notification Error] {e}")
+            time.sleep(30)
+
 # Attempt to get a valid repository name from the user (max 2 attempts)
 attempts = 0
 repo = None
@@ -168,7 +212,12 @@ while attempts < 2:
 if repo:
     print(f"Successfully accessed repository: {repo.full_name}")
     
-    # Main menu loop to manage issues, stats, and branches
+    # Initialize notification counts
+    last_issue_count = repo.get_issues(state="open").totalCount
+    last_pr_count = repo.get_pulls(state="open").totalCount
+    last_commit_count = repo.get_commits().totalCount
+
+    # Main menu loop to manage issues, stats, branches, and notifications
     while True:
         print("\nWhat would you like to do?")
         print("1. Create a new issue")
@@ -178,8 +227,9 @@ if repo:
         print("5. Create a new branch")
         print("6. Delete a branch")
         print("7. List branches")
-        print("8. Exit")
-        choice = input("Enter your choice (1-8): ")
+        print("8. Toggle notifications (currently: " + ("ON" if notifications_enabled else "OFF") + ")")
+        print("9. Exit")
+        choice = input("Enter your choice (1-9): ")
         
         if choice == "1":
             issue_title = input("Enter the title for the new issue: ")
@@ -210,6 +260,14 @@ if repo:
         elif choice == "7":
             list_branches(repo)
         elif choice == "8":
+            notifications_enabled = not notifications_enabled
+            if notifications_enabled:
+                print("Notifications enabled. Checking for updates every 30 seconds...")
+                # Start the notification thread
+                threading.Thread(target=check_notifications, args=(repo,), daemon=True).start()
+            else:
+                print("Notifications disabled.")
+        elif choice == "9":
             print("Exiting...")
             break
         else:
