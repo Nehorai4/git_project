@@ -77,19 +77,22 @@ def list_issues(repo, state="open"):
 def show_repo_stats(repo):
     """Display basic statistics about the repository."""
     try:
-       
+        # Count issues
         open_issues = repo.get_issues(state="open").totalCount
         closed_issues = repo.get_issues(state="closed").totalCount
         
-      
+        # Count pull requests
         open_pulls = repo.get_pulls(state="open").totalCount
         closed_pulls = repo.get_pulls(state="closed").totalCount
         
+        # Count commits
         commits = repo.get_commits().totalCount
         
-        last_commit = repo.get_commits()[0]  
+        # Get last contributor
+        last_commit = repo.get_commits()[0]
         last_contributor = last_commit.author.login if last_commit.author else "Unknown"
 
+        # Display statistics
         print("\nRepository Statistics:")
         print(f"Open Issues: {open_issues}")
         print(f"Closed Issues: {closed_issues}")
@@ -100,6 +103,52 @@ def show_repo_stats(repo):
     except Exception as e:
         print(f"Error fetching repository stats: {e}")
 
+def create_branch(repo, branch_name):
+    """Create a new branch in the repository based on main."""
+    try:
+        # Get the main branch reference
+        source_branch = repo.get_branch("main")
+        # Create a new branch from the latest commit of main
+        repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=source_branch.commit.sha)
+        print(f"Branch '{branch_name}' created successfully.")
+    except GithubException as e:
+        print(f"Error creating branch: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+def delete_branch(repo, branch_name):
+    """Delete an existing branch from the repository."""
+    try:
+        # Prevent deletion of the main branch
+        if branch_name == "main":
+            print("Cannot delete the main branch.")
+            return
+        # Get the branch reference
+        ref = repo.get_git_ref(f"heads/{branch_name}")
+        # Delete the branch
+        ref.delete()
+        print(f"Branch '{branch_name}' deleted successfully.")
+    except GithubException as e:
+        if e.status == 404:
+            print(f"Branch '{branch_name}' does not exist.")
+        else:
+            print(f"Error deleting branch: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+def list_branches(repo):
+    """List all branches in the repository."""
+    try:
+        branches = repo.get_branches()
+        if not branches:
+            print("No branches found in the repository.")
+            return
+        print("\nBranches:")
+        for branch in branches:
+            print(f"- {branch.name}")
+    except Exception as e:
+        print(f"Error listing branches: {e}")
+
 # Attempt to get a valid repository name from the user (max 2 attempts)
 attempts = 0
 repo = None
@@ -107,7 +156,7 @@ while attempts < 2:
     repo_name = input("Enter the repository name: ")
     repo = get_repo(repo_name)
     if repo:
-        break  # Exit the loop if repo is valid
+        break
     attempts += 1
     if attempts == 1:
         print("You have one more attempt to enter a valid repository name, e.g., example/examplerepo.")
@@ -119,15 +168,18 @@ while attempts < 2:
 if repo:
     print(f"Successfully accessed repository: {repo.full_name}")
     
-    # Main menu loop to manage issues and stats
+    # Main menu loop to manage issues, stats, and branches
     while True:
         print("\nWhat would you like to do?")
         print("1. Create a new issue")
         print("2. Close an existing issue")
         print("3. List issues")
         print("4. Show repository statistics")
-        print("5. Exit")
-        choice = input("Enter your choice (1-5): ")
+        print("5. Create a new branch")
+        print("6. Delete a branch")
+        print("7. List branches")
+        print("8. Exit")
+        choice = input("Enter your choice (1-8): ")
         
         if choice == "1":
             issue_title = input("Enter the title for the new issue: ")
@@ -150,6 +202,14 @@ if repo:
         elif choice == "4":
             show_repo_stats(repo)
         elif choice == "5":
+            branch_name = input("Enter the name for the new branch: ")
+            create_branch(repo, branch_name)
+        elif choice == "6":
+            branch_name = input("Enter the name of the branch to delete: ")
+            delete_branch(repo, branch_name)
+        elif choice == "7":
+            list_branches(repo)
+        elif choice == "8":
             print("Exiting...")
             break
         else:
