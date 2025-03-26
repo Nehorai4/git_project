@@ -3,7 +3,7 @@ from github import Github, GithubException
 # Get GitHub token from user input
 GITHUB_TOKEN = input("Enter your GitHub token: ")
 
-# Check if the token is furnish or invalid
+# Check if the token is empty or invalid
 if not GITHUB_TOKEN.strip():
     print("Error: GitHub token cannot be empty. Please provide a valid token.")
     exit()
@@ -123,10 +123,10 @@ def delete_branch(repo, branch_name):
         if branch_name == "main":
             print("Cannot delete the main branch.")
             return
-        # Check if the branch exists
-        repo.get_branch(branch_name)
+        # Get the branch reference
+        ref = repo.get_git_ref(f"heads/{branch_name}")
         # Delete the branch
-        repo.delete_git_ref(ref=f"refs/heads/{branch_name}")
+        ref.delete()
         print(f"Branch '{branch_name}' deleted successfully.")
     except GithubException as e:
         if e.status == 404:
@@ -193,7 +193,7 @@ if repo:
                     close_issue(repo, issue_number)
             except ValueError:
                 print("Please enter a valid number")
-        elif choice == " ไม่":
+        elif choice == "3":
             state = input("Enter state to filter (open/closed/all, default is open): ") or "open"
             if state not in ["open", "closed", "all"]:
                 print("Invalid state, using default: open")
