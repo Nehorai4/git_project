@@ -74,6 +74,32 @@ def list_issues(repo, state="open"):
     except Exception as e:
         print(f"Error listing issues: {e}")
 
+def show_repo_stats(repo):
+    """Display basic statistics about the repository."""
+    try:
+       
+        open_issues = repo.get_issues(state="open").totalCount
+        closed_issues = repo.get_issues(state="closed").totalCount
+        
+      
+        open_pulls = repo.get_pulls(state="open").totalCount
+        closed_pulls = repo.get_pulls(state="closed").totalCount
+        
+        commits = repo.get_commits().totalCount
+        
+        last_commit = repo.get_commits()[0]  
+        last_contributor = last_commit.author.login if last_commit.author else "Unknown"
+
+        print("\nRepository Statistics:")
+        print(f"Open Issues: {open_issues}")
+        print(f"Closed Issues: {closed_issues}")
+        print(f"Open Pull Requests: {open_pulls}")
+        print(f"Closed Pull Requests: {closed_pulls}")
+        print(f"Total Commits: {commits}")
+        print(f"Last Contributor: {last_contributor}")
+    except Exception as e:
+        print(f"Error fetching repository stats: {e}")
+
 # Attempt to get a valid repository name from the user (max 2 attempts)
 attempts = 0
 repo = None
@@ -84,7 +110,7 @@ while attempts < 2:
         break  # Exit the loop if repo is valid
     attempts += 1
     if attempts == 1:
-        print("You have one more attempt to enter a valid repository name,e.g example/examplerepo.")
+        print("You have one more attempt to enter a valid repository name, e.g., example/examplerepo.")
     elif attempts == 2:
         print("You entered an invalid repository name twice. Exiting the program.")
         exit()
@@ -93,14 +119,15 @@ while attempts < 2:
 if repo:
     print(f"Successfully accessed repository: {repo.full_name}")
     
-    # Main menu loop to manage issues
+    # Main menu loop to manage issues and stats
     while True:
         print("\nWhat would you like to do?")
         print("1. Create a new issue")
         print("2. Close an existing issue")
         print("3. List issues")
-        print("4. Exit")
-        choice = input("Enter your choice (1, 2, 3, or 4): ")
+        print("4. Show repository statistics")
+        print("5. Exit")
+        choice = input("Enter your choice (1-5): ")
         
         if choice == "1":
             issue_title = input("Enter the title for the new issue: ")
@@ -121,6 +148,8 @@ if repo:
                 state = "open"
             list_issues(repo, state)
         elif choice == "4":
+            show_repo_stats(repo)
+        elif choice == "5":
             print("Exiting...")
             break
         else:
